@@ -1,0 +1,52 @@
+{
+  "serviceName": "item-relay",
+  "chain": {
+    "chainId": 11155111,
+    "httpRpcUrl": "https://ethereum-sepolia-rpc.publicnode.com",
+    "startBlock": 0,
+    "confirmationDepth": 0
+  },
+  "sync": {
+    "pollIntervalMs": 3000,
+    "retryBaseDelayMs": 1000,
+    "retryMaxDelayMs": 30000,
+    "queueBatchSize": 50
+  },
+  "storage": {
+    "sqlitePath": "./data/item-relay.sqlite"
+  },
+  "collections": [
+    {
+      "name": "wearables1155",
+      "address": "0x0000000000000000000000000000000000000001",
+      "standard": "ERC1155"
+    },
+    {
+      "name": "cosmetics721",
+      "address": "0x0000000000000000000000000000000000000002",
+      "standard": "ERC721"
+    }
+  ],
+  "shops": [
+    {
+      "name": "catalogShop",
+      "address": "0x0000000000000000000000000000000000000003"
+    }
+  ],
+  "sinks": {
+    "legacy": {
+      "enabled": false,
+      "endpointUrl": "http://localhost:3030/Kekspace/Web3ItemTransferLegacy",
+      "timeoutMs": 5000
+    },
+    "normalized": {
+      "enabled": true,
+      "endpointUrl": "http://localhost:3030/Kekspace/Web3ItemTransfer",
+      "timeoutMs": 5000
+    }
+  },
+  "health": {
+    "host": "127.0.0.1",
+    "port": 3090
+  }
+}
