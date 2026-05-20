@@ -14,7 +14,7 @@ The service exposes a single HTTP endpoint for monitoring.
 
 Returns the current health and operational state of the relay.
 
-**Default address:** `http://backend.kek.space3090/health`
+**Default address:** `http://localhost3090/health`
 (Host and port are configurable via `health.host` / `health.port` in the service config.)
 
 **Authentication:** None
@@ -68,7 +68,7 @@ A healthy service has `deadLetters: 0` and `lastProcessedBlock` close to `lastOb
 
 The item-relay service pushes token transfer events to the KekSpace game server via HTTP POST. Two formats are available: **normalized** (recommended) and **legacy**.
 
-**Base URL:** `https://backend.kek.space:3030`
+**Base URL:** `https://backend.kek.space:3030` or 'http://localhost:3030' for local testing
 
 ### Common request headers
 
