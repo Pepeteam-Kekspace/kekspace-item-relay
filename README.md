@@ -349,6 +349,8 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
 
 Example curl to trigger an event manually
 
+
+```
 curl -X POST http://localhost:3030/Kekspace/Web3ItemTransfer \
   -H "Content-Type: application/json" \
   -d '{
@@ -357,9 +359,9 @@ curl -X POST http://localhost:3030/Kekspace/Web3ItemTransfer \
     "block_number": 10500,
     "tx_hash": "0xabc123def4567890abc123def4567890abc123def4567890abc123def4567890"
   }'
-
+```
 Example legacy curl to trigger an event manually
-
+```
 curl -X POST http://localhost:3030/Kekspace/Web3ItemTransferLegacy \
   -H "Content-Type: application/json" \
   -d '{
@@ -371,9 +373,9 @@ curl -X POST http://localhost:3030/Kekspace/Web3ItemTransferLegacy \
     "token_id": "1",
     "value": "1"
   }'
-
+```
 Example curl to check health status
-
+```
 curl http://localhost:3090/health
-
+```
 The health endpoint is exposed at `/health`.
