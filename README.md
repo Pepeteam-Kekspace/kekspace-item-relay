@@ -58,6 +58,10 @@ From README-API.md:
 
 # item-relay Service — API Reference
 
+On the server, this service runs at port 3090 (set in config/config.json) in back of a nginx reverse proxy at port 3030. 
+It's not secure to expose node services directly to the internet.
+
+
 This document covers the HTTP interface exposed by the **item-relay** service and the webhook endpoints it delivers to.
 
 See the very bottom for example curl commands to trigger an event manually.
@@ -72,7 +76,7 @@ The service exposes a single HTTP endpoint for monitoring.
 
 Returns the current health and operational state of the relay.
 
-**Default address:** `http://localhost3090/health`
+**Default address:** http://localhost:3030/health
 (Host and port are configurable via `health.host` / `health.port` in the service config.)
 
 **Authentication:** None
@@ -83,7 +87,7 @@ No query parameters, headers, or request body required.
 
 ```
 GET /health HTTP/1.1
-Host: 127.0.0.1:3090
+Host: 127.0.0.1:3030
 ```
 
 **Response**
@@ -316,7 +320,7 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
   },
   "health": {
     "host": "127.0.0.1",
-    "port": 3090
+    "port": 3030
   }
 }
 ```
@@ -342,7 +346,9 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
 | `sinks.*.authToken` | `string` (optional) | Sent as `Authorization: Bearer <token>` unless `authHeader` is set |
 | `sinks.*.authHeader` | `string` (optional) | Overrides the header name; token sent as-is with no `Bearer` prefix |
 | `health.host` | `string` | `127.0.0.1` for localhost only, `0.0.0.0` to expose externally |
-| `health.port` | `number` | Port for the health endpoint |
+| `relay.host` | `string` | `0.0.0.0` to accept external connections, `127.0.0.1` for localhost only |
+| `relay.port` | `number` | Default listening port for the relay service (env: `ITEM_RELAY_PORT`) |
+| `health.port` | `number` | Port for the health endpoint (env: `ITEM_RELAY_HEALTH_PORT`) |
 
 
 ## EXAMPLE CURL COMMANDS for testing
@@ -376,6 +382,6 @@ curl -X POST http://localhost:3030/Kekspace/Web3ItemTransferLegacy \
 ```
 Example curl to check health status
 ```
-curl http://localhost:3090/health
+curl http://localhost:3030/health
 ```
 The health endpoint is exposed at `/health`.
