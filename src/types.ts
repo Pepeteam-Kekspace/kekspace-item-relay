@@ -48,6 +48,11 @@ export type ServiceConfig = {
     host: string;
     port: number;
   };
+  test?: {
+    enabled: boolean;
+    host: string;
+    port: number;
+  };
 };
 
 export type ShopContext = {
