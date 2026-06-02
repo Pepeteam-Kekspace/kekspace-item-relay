@@ -94,3 +94,15 @@ curl -X POST http://127.0.0.1:3095/inject \
 ```
 
 The event will flow through the same queue and webhook delivery logic as blockchain events, so you can verify your downstream endpoint receives the correct payload shape.
+
+
+## Mock Webhook Endpoint Listener
+
+In the tools/ folder there is a Quick Node mock server.
+
+Normally the game  will listen to events sent from the listener to port 3000, but if it is not in place yet
+the item-relay will give errors while testing.
+
+Running this mock-webhook-server.sh allows testing curl calls with no game/webhook server running.
+
+This is only needed if enabling test mode and there is no game endpoint yet
