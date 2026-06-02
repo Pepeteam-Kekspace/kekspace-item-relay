@@ -48,6 +48,11 @@ export class RelayApp {
     return this.health;
   }
 
+  injectTestEvent(event: ItemTransferEvent): void {
+    this.enqueueForSinks(event, Date.now());
+    this.logger.info("test event injected", {notificationId: event.notificationId});
+  }
+
   async start(): Promise<void> {
     void this.runQueueWorker();
     await this.runPollLoop();
@@ -82,11 +87,10 @@ export class RelayApp {
         const latestBlock = await this.adapter.getLatestBlock();
         this.health.setLastObservedBlock(latestBlock);
 
-        const targetBlock = Math.max(
+        const stableBlock = Math.max(
           0,
           latestBlock - this.config.chain.confirmationDepth,
         );
-        const stableBlock = Math.min(targetBlock, nextFromBlock + 10000 - 1);
 
         if (stableBlock >= nextFromBlock) {
           const events = await this.adapter.getItemEvents(nextFromBlock, stableBlock);
