@@ -48,6 +48,11 @@ export class RelayApp {
     return this.health;
   }
 
+  injectTestEvent(event: ItemTransferEvent): void {
+    this.enqueueForSinks(event, Date.now());
+    this.logger.info("test event injected", {notificationId: event.notificationId});
+  }
+
   async start(): Promise<void> {
     void this.runQueueWorker();
     await this.runPollLoop();
