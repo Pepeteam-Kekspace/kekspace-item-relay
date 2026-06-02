@@ -55,34 +55,28 @@ export class ItemRelayAdapter {
     }
 
     const rawEvents: RawEvent[] = [];
-    const maxBlockRange = 10000;
 
-    // Batch block ranges to avoid RPC limits
-    for (let batchFromBlock = fromBlock; batchFromBlock <= toBlock; batchFromBlock += maxBlockRange) {
-      const batchToBlock = Math.min(batchFromBlock + maxBlockRange - 1, toBlock);
-
-      for (const collection of this.collections) {
-        const logs = await this.client.getLogs({
-          address: collection.address,
-          fromBlock: BigInt(batchFromBlock),
-          toBlock: BigInt(batchToBlock),
-        });
-        for (const log of logs) {
-          rawEvents.push(...this.decodeCollectionLog(collection, log));
-        }
+    for (const collection of this.collections) {
+      const logs = await this.client.getLogs({
+        address: collection.address,
+        fromBlock: BigInt(fromBlock),
+        toBlock: BigInt(toBlock),
+      });
+      for (const log of logs) {
+        rawEvents.push(...this.decodeCollectionLog(collection, log));
       }
+    }
 
-      for (const shop of this.shops) {
-        const logs = await this.client.getLogs({
-          address: shop.address,
-          fromBlock: BigInt(batchFromBlock),
-          toBlock: BigInt(batchToBlock),
-        });
-        for (const log of logs) {
-          const decoded = this.decodeShopLog(shop, log);
-          if (decoded) {
-            rawEvents.push(decoded);
-          }
+    for (const shop of this.shops) {
+      const logs = await this.client.getLogs({
+        address: shop.address,
+        fromBlock: BigInt(fromBlock),
+        toBlock: BigInt(toBlock),
+      });
+      for (const log of logs) {
+        const decoded = this.decodeShopLog(shop, log);
+        if (decoded) {
+          rawEvents.push(decoded);
         }
       }
     }
