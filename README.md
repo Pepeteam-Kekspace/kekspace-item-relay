@@ -1,6 +1,8 @@
-# Item Relay
+# Kekspace Item Relay
 
 `item-relay` is a production-oriented replacement for the old `ksitems-listener` script.
+
+## See README-API.md for in-depth details
 
 It closes the known gaps:
 
