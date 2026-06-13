@@ -1,12 +1,12 @@
 # Event Injection Examples
 
-The test server must be enabled with `"enabled": true` in `config.test`.
+The local API server must be enabled with `"enabled": true` in the `endpoint` block of `config.json`, **and** event injection must be turned on with `"eventTesting": true`. The server runs whenever `enabled` is `true` (so the read endpoints — see `README-API.md` — stay available), but `POST /inject` returns `403` unless `eventTesting` is also `true`.
 
-**Test Server Endpoint:** `POST http://127.0.0.1:3099/inject`
+**Test Server Endpoint:** `POST `http://127.0.0.1:3099/inject`
 
 All examples send events to the same queue and delivery system as real blockchain events.
 
-# Do not leave this on in production!
+# Do not leave event injection (`eventTesting`) on in production!
 
 ---
 
@@ -289,7 +289,7 @@ curl -X POST http://127.0.0.1:3099/inject \
 
 ---
 
-## 10. Mint from Zero Address (Burn-like Reverse)
+## 10. Mint from Zero Address 
 
 Transfer from zero address to simulate minting.
 

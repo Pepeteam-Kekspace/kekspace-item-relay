@@ -20,7 +20,7 @@ Returns the current health and operational state of the relay.
 **Default address:** `http://localhost:3030/health` 
 
 ```
-curl https://backend.kek.space:3030/health
+curl http://localhost:3030/health
 ```
 
 (Host and port are configurable via `health.host` / `health.port` in the service config.)
@@ -72,11 +72,96 @@ A healthy service has `deadLetters: 0` and `lastProcessedBlock` close to `lastOb
 
 ---
 
+## Local API Server (port 3099)
+
+A local-only API for game devs, bound to `127.0.0.1:3099`. It is enabled by the `endpoint` block in `config/config.json`:
+
+```json
+"endpoint": { "enabled": true, "host": "127.0.0.1", "port": 3099, "eventTesting": false }
+```
+
+- `enabled` — runs the server (serves the read endpoints below).
+- `eventTesting` — gates `POST /inject` only. When `false`, `/inject` returns `403`; the read endpoints are unaffected. See `EXAMPLES.md` for `/inject` payloads. **Keep `eventTesting` off in production.**
+
+The read endpoints answer listing/price queries from CatalogShop state that the relay indexes locally from on-chain events (`ListingCreated`, `ListingLineSet`, `ETHPaymentConfigured`, `ERC20PaymentConfigured`, `ListingDeactivated`, …). No on-chain call is made per request. Listings are indexed from `chain.startBlock` forward.
+
+**Authentication:** None (bind to localhost only).
+
+### Listings, bundles, and pricing
+
+- A **listing** delivers one or more `(collectionId, tokenId, amountPerUnit)` **lines** for a price. Prices are set per payment method: ETH (`eth`) and/or per-token ERC20 (`erc20: [{token, price}]`). **All prices are human-readable decimal strings** — `eth` is scaled by 18 decimals (e.g. `"0.0005"`), and each ERC20 `price` is scaled by that token's own `decimals()` (e.g. a 6-decimal token shows `"0.05"`).
+- A **bundle** is a single listing with **more than one line** — it delivers several different tokens for one combined price. Bundles are **excluded** from the standalone-token lookups, so a discounted bundle containing a token never overrides that token's standalone price.
+- The standalone lookups return the **lowest (earliest) `listingId`** that is **standalone, active, and payment-enabled**.
+
+### `GET /fetch?tokenId=<id>`
+
+First standalone listing for a token. Assumes `tokenId` is unique across collections; if it may not be, use `/fetchInCollection`.
+
+```
+curl 'http://127.0.0.1:3099/fetch?tokenId=218'
+```
+
+`200 OK`:
+
+```json
+{ "tokenId": "218", "listingId": 1, "eth": "0.0005", "erc20": [] }
+```
+
+`eth` (decimal ETH string) is present only when ETH payment is enabled. `erc20` lists enabled ERC20 prices as decimal strings (may be empty). This endpoint does **not** return `collectionId` — use `/fetchInCollection` if you need the collection. Returns `404` if no active standalone listing exists, `400` if `tokenId` is missing or non-numeric.
+
+### `GET /fetchInCollection?tokenId=<id>`
+
+All listings for a token, one per collection (disambiguates a tokenId that exists in multiple collections).
+
+```
+curl 'http://127.0.0.1:3099/fetchInCollection?tokenId=218'
+```
+
+`200 OK`:
+
+```json
+{
+  "tokenId": "218",
+  "listings": [
+    { "listingId": 1, "collectionId": 1, "eth": "0.0005", "erc20": [] }
+  ]
+}
+```
+
+`listings` may be empty if there are no active listings.
+
+### `GET /fetchBundle?bundleId=<listingId>`
+
+Composition and price for a listing by its id. Returns its delivery lines and price(s). `isBundle` is `true` when the listing has more than one line.
+
+```
+curl 'http://127.0.0.1:3099/fetchBundle?bundleId=2'
+```
+
+`200 OK`:
+
+```json
+{
+  "bundleId": 2,
+  "isBundle": true,
+  "eth": "0.5",
+  "erc20": [],
+  "items": [
+    { "collectionId": 1, "tokenId": "218", "amount": "1" },
+    { "collectionId": 1, "tokenId": "777", "amount": "1" }
+  ]
+}
+```
+
+Returns `404` if the listing id is unknown, `400` if `bundleId` is missing or non-numeric.
+
+---
+
 ## Outbound Webhooks — Game Server Endpoints
 
 The item-relay service pushes token transfer events to the KekSpace game server via HTTP POST. Two formats are available: **normalized** (recommended) and **legacy**.
 
-**Base URL:** `https://backend.kek.space:3030` or 'http://localhost:3030' for local testing
+**Base URL:** `http://localhost:3030` or 'http://localhost:3030' for local testing
 
 ### Common request headers
 
@@ -111,7 +196,7 @@ Default backoff schedule (delays have ±20% jitter):
 
 Use this endpoint for all new integrations.
 
-**Full URL:** `https://backend.kek.space:3030/Kekspace/Web3ItemTransfer`
+**Full URL:** `http://localhost:3030/Kekspace/Web3ItemTransfer`
 
 **Payload**
 
@@ -189,7 +274,7 @@ Use this endpoint for all new integrations.
 
 Use this endpoint only if you have an existing integration that cannot be migrated to the normalized format.
 
-**Full URL:** `https://backend.kek.space:3030/Kekspace/Web3ItemTransferLegacy`
+**Full URL:** `http://localhost:3030/Kekspace/Web3ItemTransferLegacy`
 
 **Payload**
 
@@ -253,14 +338,14 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
   "sinks": {
     "normalized": {
       "enabled": true,
-      "endpointUrl": "https://backend.kek.space:3030/Kekspace/Web3ItemTransfer",
+      "endpointUrl": "http://localhost:3030/Kekspace/Web3ItemTransfer",
       "timeoutMs": 5000,
       "authToken": "optional-bearer-token",
       "authHeader": "optional-custom-header-name"
     },
     "legacy": {
       "enabled": false,
-      "endpointUrl": "https://backend.kek.space:3030/Kekspace/Web3ItemTransferLegacy",
+      "endpointUrl": "http://localhost:3030/Kekspace/Web3ItemTransferLegacy",
       "timeoutMs": 5000
     }
   },
@@ -326,6 +411,6 @@ curl -X POST http://localhost:3030/Kekspace/Web3ItemTransferLegacy \
 ```
 Example curl to check health status
 ```
-curl http://localhost:3090/health or https://backend.kek.space:3030/health
+curl http://localhost:3090/health
 ```
 The health endpoint is exposed at `/health`.

@@ -1,12 +1,21 @@
-import {decodeEventLog, getAddress, type Address, type Log, type PublicClient} from "viem";
+import {
+  decodeEventLog,
+  erc20Abi,
+  getAddress,
+  type Address,
+  type Log,
+  type PublicClient,
+} from "viem";
 import {erc721TransferAbi} from "../abi/erc721.js";
 import {erc1155TransferAbi} from "../abi/erc1155.js";
 import {catalogShopAbi} from "../abi/catalogShop.js";
+import type {Logger} from "../util/logger.js";
 import type {
   CollectionBinding,
   ItemTransferEvent,
   ShopBinding,
   ShopContext,
+  ShopListingEvent,
   TokenStandard,
 } from "../types.js";
 
@@ -39,10 +48,13 @@ type RawDelivery = {
 type RawEvent = RawTransferItem | RawDelivery;
 
 export class ItemRelayAdapter {
+  private readonly erc20DecimalsCache = new Map<string, number>();
+
   constructor(
     private readonly client: PublicClient,
     private readonly collections: CollectionBinding[],
     private readonly shops: ShopBinding[],
+    private readonly logger?: Logger,
   ) {}
 
   async getLatestBlock(): Promise<number> {
@@ -229,6 +241,152 @@ export class ItemRelayAdapter {
           sourceId: String(args.sourceId),
         },
       };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Decodes CatalogShop listing/payment events from the shop addresses over a
+   * block range, in chain order. Used to index local listing/price state; these
+   * events are not delivered to webhook sinks.
+   */
+  async getListingEvents(fromBlock: number, toBlock: number): Promise<ShopListingEvent[]> {
+    if (toBlock < fromBlock) {
+      return [];
+    }
+
+    const decoded: Array<{logIndex: number; event: ShopListingEvent}> = [];
+
+    for (const shop of this.shops) {
+      const logs = await this.client.getLogs({
+        address: shop.address,
+        fromBlock: BigInt(fromBlock),
+        toBlock: BigInt(toBlock),
+      });
+      for (const log of logs) {
+        const event = this.decodeListingLog(log);
+        if (event) {
+          decoded.push({logIndex: Number(log.logIndex ?? 0n), event});
+        }
+      }
+    }
+
+    decoded.sort((left, right) => {
+      if (left.event.block !== right.event.block) {
+        return left.event.block - right.event.block;
+      }
+      return left.logIndex - right.logIndex;
+    });
+
+    // Enrich ERC20 payment events with the token's decimals so prices can be
+    // formatted for display. Read once per token and cached.
+    for (const {event} of decoded) {
+      if (event.kind === "erc20Payment") {
+        event.decimals = await this.getErc20Decimals(event.token);
+      }
+    }
+
+    return decoded.map((entry) => entry.event);
+  }
+
+  /** Reads (and caches) an ERC20 token's `decimals()`; defaults to 18 on failure. */
+  private async getErc20Decimals(token: string): Promise<number> {
+    const key = token.toLowerCase();
+    const cached = this.erc20DecimalsCache.get(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+    try {
+      const decimals = Number(
+        await this.client.readContract({
+          address: getAddress(token),
+          abi: erc20Abi,
+          functionName: "decimals",
+        }),
+      );
+      this.erc20DecimalsCache.set(key, decimals);
+      return decimals;
+    } catch (error) {
+      // Non-standard token or transient read failure; default to 18 but don't
+      // cache, so a later poll can resolve the real value.
+      this.logger?.warn("failed to read erc20 decimals; defaulting to 18", {
+        token,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return 18;
+    }
+  }
+
+  private decodeListingLog(log: Log): ShopListingEvent | null {
+    const block = Number(log.blockNumber ?? 0n);
+
+    try {
+      const decoded = decodeEventLog({
+        abi: catalogShopAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      const args = decoded.args as any;
+
+      switch (decoded.eventName) {
+        case "ListingCreated":
+          return {kind: "listingCreated", listingId: Number(args.listingId), block};
+        case "ListingConfigUpdated":
+          return {
+            kind: "configUpdated",
+            listingId: Number(args.listingId),
+            active: Boolean(args.active),
+            block,
+          };
+        case "ListingLinesReplaced":
+          return {
+            kind: "linesReplaced",
+            listingId: Number(args.listingId),
+            lineCount: Number(args.lineCount),
+            block,
+          };
+        case "ListingLineSet":
+          return {
+            kind: "lineSet",
+            listingId: Number(args.listingId),
+            lineIndex: Number(args.lineIndex),
+            collectionId: Number(args.collectionId),
+            tokenId: String(args.tokenId),
+            amountPerUnit: String(args.amountPerUnit),
+            block,
+          };
+        case "ListingDeactivated":
+          return {kind: "deactivated", listingId: Number(args.listingId), block};
+        case "ETHPaymentConfigured":
+          return {
+            kind: "ethPayment",
+            listingId: Number(args.listingId),
+            enabled: Boolean(args.enabled),
+            price: String(args.price),
+            block,
+          };
+        case "ERC20PaymentConfigured":
+          return {
+            kind: "erc20Payment",
+            listingId: Number(args.listingId),
+            token: getAddress(String(args.token)),
+            enabled: Boolean(args.enabled),
+            price: String(args.price),
+            // Placeholder; resolved from the token contract in getListingEvents.
+            decimals: 18,
+            block,
+          };
+        case "ERC20PaymentConfigCleared":
+          return {
+            kind: "erc20Cleared",
+            listingId: Number(args.listingId),
+            token: getAddress(String(args.token)),
+            block,
+          };
+        default:
+          return null;
+      }
     } catch {
       return null;
     }

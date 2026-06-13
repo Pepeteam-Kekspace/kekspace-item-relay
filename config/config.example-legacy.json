@@ -35,12 +35,12 @@
   ],
   "sinks": {
     "legacy": {
-      "enabled": false,
+      "enabled": true,
       "endpointUrl": "http://localhost:3030/Kekspace/Web3ItemTransferLegacy",
       "timeoutMs": 5000
     },
     "normalized": {
-      "enabled": true,
+      "enabled": false,
       "endpointUrl": "http://localhost:3030/Kekspace/Web3ItemTransfer",
       "timeoutMs": 5000
     }

@@ -48,10 +48,11 @@ export type ServiceConfig = {
     host: string;
     port: number;
   };
-  test?: {
+  endpoint?: {
     enabled: boolean;
     host: string;
     port: number;
+    eventTesting: boolean;
   };
 };
 
@@ -153,3 +154,68 @@ export type HealthSnapshot = {
   deadLetters: number;
   enabledSinks: string[];
 };
+
+// --- CatalogShop listing indexing ---
+
+export type Erc20Price = {
+  token: string;
+  price: string;
+};
+
+export type ListingPrices = {
+  eth?: string;
+  erc20: Erc20Price[];
+};
+
+export type StandaloneListing = ListingPrices & {
+  collectionId: number;
+  listingId: number;
+};
+
+/** Result of a tokenId lookup that assumes the tokenId is unique across collections. */
+export type TokenListing = ListingPrices & {
+  listingId: number;
+};
+
+export type BundleItem = {
+  collectionId: number;
+  tokenId: string;
+  amount: string;
+};
+
+export type BundleListing = ListingPrices & {
+  bundleId: number;
+  isBundle: boolean;
+  items: BundleItem[];
+};
+
+/**
+ * Decoded CatalogShop listing/payment events the relay indexes into local state.
+ * `block` is the log's block number, used for ordering/debugging.
+ */
+export type ShopListingEvent =
+  | {kind: "listingCreated"; listingId: number; block: number}
+  | {kind: "configUpdated"; listingId: number; active: boolean; block: number}
+  | {kind: "linesReplaced"; listingId: number; lineCount: number; block: number}
+  | {
+      kind: "lineSet";
+      listingId: number;
+      lineIndex: number;
+      collectionId: number;
+      tokenId: string;
+      amountPerUnit: string;
+      block: number;
+    }
+  | {kind: "deactivated"; listingId: number; block: number}
+  | {kind: "ethPayment"; listingId: number; enabled: boolean; price: string; block: number}
+  | {
+      kind: "erc20Payment";
+      listingId: number;
+      token: string;
+      enabled: boolean;
+      price: string;
+      /** Token's ERC20 `decimals()`, used to format `price` for display. */
+      decimals: number;
+      block: number;
+    }
+  | {kind: "erc20Cleared"; listingId: number; token: string; block: number};

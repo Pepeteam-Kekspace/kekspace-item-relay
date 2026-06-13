@@ -12,8 +12,11 @@ async function main(): Promise<void> {
   startHealthServer(config.health.host, config.health.port, app.getHealth());
   logger.info("health server started", config.health);
 
-  if (config.test?.enabled) {
-    startTestServer(config.test, logger, (event) => app.injectTestEvent(event));
+  if (config.endpoint?.enabled) {
+    startTestServer(config.endpoint, logger, {
+      injectEvent: (event) => app.injectTestEvent(event),
+      reader: app,
+    });
   }
 
   await app.start();
