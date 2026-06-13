@@ -6,6 +6,8 @@ The test server must be enabled with `"enabled": true` in `config.test`.
 
 All examples send events to the same queue and delivery system as real blockchain events.
 
+# Do not leave this on in production!
+
 ---
 
 ## 1. ERC1155 TransferSingle - Wearables (Basic)
