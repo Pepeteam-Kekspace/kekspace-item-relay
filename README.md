@@ -59,10 +59,10 @@ The service exposes a single HTTP endpoint for monitoring.
 
 Returns the current health and operational state of the relay.
 
-**Default address:** `http://localhost:3030/health` 
+**Default address:** `http://localhost:3090/health` 
 
 ```
-curl https://backend.kek.space:3030/health
+curl https://localhost:3090/health
 ```
 
 (Host and port are configurable via `health.host` / `health.port` in the service config.)
@@ -118,7 +118,7 @@ A healthy service has `deadLetters: 0` and `lastProcessedBlock` close to `lastOb
 
 The item-relay service pushes token transfer events to the KekSpace game server via HTTP POST. Two formats are available: **normalized** (recommended) and **legacy**.
 
-**Base URL:** `https://backend.kek.space:3030` or 'http://localhost:3030' for local testing
+**Base URL:** http://localhost:3030
 
 ### Common request headers
 
@@ -153,7 +153,7 @@ Default backoff schedule (delays have ±20% jitter):
 
 Use this endpoint for all new integrations.
 
-**Full URL:** `https://backend.kek.space:3030/Kekspace/Web3ItemTransfer`
+**Full URL:** `https://localhost:3030/Kekspace/Web3ItemTransfer`
 
 **Payload**
 
@@ -231,7 +231,7 @@ Use this endpoint for all new integrations.
 
 Use this endpoint only if you have an existing integration that cannot be migrated to the normalized format.
 
-**Full URL:** `https://backend.kek.space:3030/Kekspace/Web3ItemTransferLegacy`
+**Full URL:** `https://localhost:3030/Kekspace/Web3ItemTransferLegacy`
 
 **Payload**
 
@@ -295,14 +295,14 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
   "sinks": {
     "normalized": {
       "enabled": true,
-      "endpointUrl": "https://backend.kek.space:3030/Kekspace/Web3ItemTransfer",
+      "endpointUrl": "https://localhost:3030/Kekspace/Web3ItemTransfer",
       "timeoutMs": 5000,
       "authToken": "optional-bearer-token",
       "authHeader": "optional-custom-header-name"
     },
     "legacy": {
       "enabled": false,
-      "endpointUrl": "https://backend.kek.space:3030/Kekspace/Web3ItemTransferLegacy",
+      "endpointUrl": "https://localhost:3030/Kekspace/Web3ItemTransferLegacy",
       "timeoutMs": 5000
     }
   },
