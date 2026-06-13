@@ -12,5 +12,5 @@ require('http').createServer((req, res) => {
     res.end(JSON.stringify({ok: true}));
   });
 }).listen(3030);
-console.log('Mock webhook server on :3030');
+console.log('Mock webhook server listening on http://localhost:3030/Web3ItemTransfer');
 "

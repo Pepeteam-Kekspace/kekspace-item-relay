@@ -14,8 +14,15 @@
 
 # production
 /build
+/dist
+/data
+config.json
+
 
 # misc
+.DS_Store
+.vscode
+nimbalyst-local
 .DS_Store
 *.pem
 
@@ -36,4 +43,5 @@ config.json
 *.tsbuildinfo
 next-env.d.ts
 
-.DS_Store
+# application data
+

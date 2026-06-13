@@ -146,14 +146,18 @@ export function loadConfig(): ServiceConfig {
       host: asString(health.host, "config.health.host"),
       port: asNumber(health.port, "config.health.port"),
     },
-    ...(root.test !== undefined
+    ...(root.endpoint !== undefined
       ? {
-          test: (() => {
-            const test = asObject(root.test, "config.test");
+          endpoint: (() => {
+            const endpoint = asObject(root.endpoint, "config.endpoint");
             return {
-              enabled: asBoolean(test.enabled, "config.test.enabled"),
-              host: asString(test.host, "config.test.host"),
-              port: asNumber(test.port, "config.test.port"),
+              enabled: asBoolean(endpoint.enabled, "config.endpoint.enabled"),
+              host: asString(endpoint.host, "config.endpoint.host"),
+              port: asNumber(endpoint.port, "config.endpoint.port"),
+              eventTesting:
+                endpoint.eventTesting === undefined
+                  ? false
+                  : asBoolean(endpoint.eventTesting, "config.endpoint.eventTesting"),
             };
           })(),
         }

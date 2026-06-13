@@ -1,6 +1,7 @@
 import {createChainClient} from "./chain/client.js";
 import {ItemRelayAdapter} from "./chain/adapter.js";
 import {RelayDatabase} from "./db/database.js";
+import {ListingRepo} from "./db/listingRepo.js";
 import {MetaRepo} from "./db/metaRepo.js";
 import {QueueRepo} from "./db/queueRepo.js";
 import {RelayHealth} from "./health/state.js";
@@ -8,16 +9,20 @@ import {WebhookSinkClient, WebhookSinkError} from "./sinks/client.js";
 import {computeBackoffDelay, sleep} from "./util/backoff.js";
 import type {Logger} from "./util/logger.js";
 import type {
+  BundleListing,
   ItemTransferEvent,
   LegacyTransferPayload,
   NormalizedTransferPayload,
   ServiceConfig,
+  StandaloneListing,
+  TokenListing,
 } from "./types.js";
 
 export class RelayApp {
   private readonly db: RelayDatabase;
   private readonly metaRepo: MetaRepo;
   private readonly queueRepo: QueueRepo;
+  private readonly listingRepo: ListingRepo;
   private readonly chainClient;
   private readonly adapter: ItemRelayAdapter;
   private readonly sinks: Map<string, WebhookSinkClient>;
@@ -30,11 +35,13 @@ export class RelayApp {
     this.db = new RelayDatabase(this.config.storage.sqlitePath);
     this.metaRepo = new MetaRepo(this.db.connection);
     this.queueRepo = new QueueRepo(this.db.connection);
+    this.listingRepo = new ListingRepo(this.db.connection);
     this.chainClient = createChainClient(this.config.chain);
     this.adapter = new ItemRelayAdapter(
       this.chainClient,
       this.config.collections,
       this.config.shops,
+      this.logger,
     );
     this.sinks = this.buildSinks();
     this.health = new RelayHealth(
@@ -51,6 +58,21 @@ export class RelayApp {
   injectTestEvent(event: ItemTransferEvent): void {
     this.enqueueForSinks(event, Date.now());
     this.logger.info("test event injected", {notificationId: event.notificationId});
+  }
+
+  /** First standalone, active, payment-enabled listing for a tokenId. */
+  getListingByToken(tokenId: string): TokenListing | null {
+    return this.listingRepo.findStandaloneByToken(tokenId);
+  }
+
+  /** listings for a tokenId, one per collection. */
+  getListingsByTokenInCollections(tokenId: string): StandaloneListing[] {
+    return this.listingRepo.findStandaloneByTokenAllCollections(tokenId);
+  }
+
+  /** Composition and price for a listing/bundle by id. */
+  getBundleById(bundleId: number): BundleListing | null {
+    return this.listingRepo.findBundleById(bundleId);
   }
 
   async start(): Promise<void> {
@@ -99,6 +121,13 @@ export class RelayApp {
           for (const event of events) {
             this.enqueueForSinks(event, now);
           }
+          const listingEvents = await this.adapter.getListingEvents(
+            nextFromBlock,
+            stableBlock,
+          );
+          for (const listingEvent of listingEvents) {
+            this.listingRepo.apply(listingEvent);
+          }
           this.metaRepo.setNumber("last_processed_block", stableBlock);
           this.health.setLastProcessedBlock(stableBlock);
           if (events.length > 0) {
@@ -108,6 +137,7 @@ export class RelayApp {
             fromBlock: nextFromBlock,
             toBlock: stableBlock,
             eventCount: events.length,
+            listingEventCount: listingEvents.length,
           });
           nextFromBlock = stableBlock + 1;
         }

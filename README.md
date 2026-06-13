@@ -1,7 +1,214 @@
 # Kekspace Item Relay
 
 `item-relay` is a production-oriented replacement for the old `ksitems-listener` script.
-It closes the known gaps:
+
+# Quick Start (Read This!)
+
+## Run
+
+- Copy config to `config/config.json`
+- Install dependencies and build:
+
+```bash
+npm install
+```
+
+- Start kekspace-item-relay:
+
+```bash
+npm run dev
+```
+
+For production use `npm run start`
+
+
+
+## Local API ListingID Lookup
+
+These answer queries from CatalogShop. Full reference and response shapes are in `README-API.md`.
+
+### `http://localhost:3099/fetch` API Examples:
+
+```bash
+# Get listingID + price (eth and erc20, if any) for a tokenId
+curl 'http://127.0.0.1:3099/fetch?tokenId=218'
+{"tokenId":"218","listingId":1,"eth":"0","erc20":[]}
+
+# Bundle listing lookup - list of IDs + price. You need to know the bundle listingID.
+curl 'http://127.0.0.1:3099/fetchBundle?bundleId=7'
+
+# All listings for a token, if same tokenId is used in different collections (Not needed now)
+curl 'http://127.0.0.1:3099/fetchInCollection?tokenId=218'
+
+```
+
+### Example response:
+```bash
+❯ curl 'http://localhost:3099/fetch?tokenId=218'
+{"tokenId":"218","listingId":1,"eth":"0","erc20":[]}
+
+❯ curl 'http://localhost:3099/fetch?tokenId=203'
+{"tokenId":"203","listingId":3,"eth":"0.0005","erc20":[]}
+
+❯ curl 'http://localhost:3099/fetch?tokenId=000'
+{"error":"no active listing for tokenId","tokenId":"000"}
+
+```
+----------
+
+
+
+## Listener Events 
+###`http://localhost:3030/Kekspace/Web3ItemTransferLegacy`
+
+- The item-relay service pushes token transfer events to the KekSpace game server via HTTP POST. 
+- Two formats are available: **normalized** (recommended) and **legacy**.
+
+**For now we can use the legacy endpoint.**
+
+**Base URL:** `http://localhost:3030/Kekspace/Web3ItemTransferLegacy`
+
+**Payload**
+
+```json
+{
+  "block_number": "8765432",
+  "tx_hash": "0xabc...def",
+  "operator": "0x...",
+  "from": "0x...",
+  "to": "0x...",
+  "token_id": "42",
+  "value": "3"
+}
+```
+
+All values are strings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `block_number` | `string` | Block number of the transfer |
+| `tx_hash` | `string` | Transaction hash |
+| `operator` | `string` | Address that triggered the transfer. For ERC-721 transfers, falls back to `from` if no shop context is available. |
+| `from` | `string` | Sender address |
+| `to` | `string` | Recipient address |
+| `token_id` | `string` | Token ID |
+| `value` | `string` | Amount transferred |
+
+
+-------------------------
+
+
+
+
+## Health Endpoint
+
+### `GET /health`
+
+Returns the current health and status.
+```
+curl https://localhost:3090/health
+```
+
+**Response**
+
+`200 OK` with `Content-Type: application/json`.
+
+```json
+{
+  "service": "item-relay",
+  "chainId": 57073,
+  "lastObservedBlock": 8765432,
+  "lastProcessedBlock": 8765425,
+  "lastEventTimestamp": 1714000000000,
+  "lastSuccessfulPushTimestamp": 1714000005000,
+  "pendingRetries": 0,
+  "failedRetries": 0,
+  "deadLetters": 0,
+  "enabledSinks": ["normalized"]
+}
+```
+A healthy service has `deadLetters: 0` and `lastProcessedBlock` close to `lastObservedBlock`.
+
+
+-------------------
+
+### config.json - Info about testing
+
+Enabling the `endpoint` block in config.json starts a localhost-only API on `127.0.0.1:3099` with two purposes: 
+
+- **read endpoints** for game devs (listing/bundle/price lookups) and an optional 
+- **event-injection** endpoint for testing.
+
+```json
+...config.json...
+{
+  "endpoint": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 3099,
+    "eventTesting": true
+  }
+}
+```
+- `enabled` runs the server and the read endpoints.
+- `eventTesting: true` enables `POST http://localhost:3090/inject`for "fake" event testing - see **EXAMPLES.md**
+-  **Keep `eventTesting` off in production.**
+
+
+
+
+### Event injection (testing only)
+
+With `eventTesting: true`, POST a test event to inject it into the queue 
+
+**see `EXAMPLES.md` for curl "fake" event testing examples.**
+
+### One more note:
+### If you want to watch the Web3ItemTransferLegacy and watch the output in terminal,
+### run:
+```
+❯ tools/mock-webhook-server-legacy.sh
+Mock LEGACY webhook server listening on http://localhost:3030/Kekspace/Web3ItemTransferLegacy
+
+Received LEGACY webhook: {
+  block_number: '5843210',
+  tx_hash: '0x8d7c9e4f3b2a1d6c5e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b',
+  operator: '0x1234567890abcdef1234567890abcdef12345678',
+  from: '0x0000000000000000000000000000000000000000',
+  to: '0x1234567890abcdef1234567890abcdef12345678',
+  token_id: '1001',
+  value: '1'
+}
+```
+**you will see events or "test" events here, and/or in your game listener**
+
+Thank you for reading the quickstart. Don't forget, test examples are in EXAMPLES.md
+
+-----------------------------------
+-----------------------------------
+-----------------------------------
+-----------------------------------
+
+#END QUICKSTART
+
+-----------------------------------
+-----------------------------------
+-----------------------------------
+-----------------------------------
+
+Some information is repeated below, the Quick Start has the most important info.
+Also see EXAMPLES.md
+Detailed API info in README-API.md
+
+
+## README.md
+
+
+
+##kekspace-item-relay
+
+
+**Features:**
 
 - ERC721 `Transfer` support
 - ERC1155 `TransferSingle` support
@@ -37,8 +244,8 @@ If the backend mainly cares about keeping the `/Kekspace/Web3ItemTransfer` route
 
 ## Run
 
-1. Copy `config/config.example.json` to a real config file.
-2. Point `ITEM_RELAY_CONFIG` at that file.
+1. Copy `config/config.example.json` to `config/config.json`
+2. or export `ITEM_RELAY_CONFIG=config/custom_config_file.json`
 3. Install dependencies:
 
 ```bash
@@ -51,9 +258,9 @@ npm install
 npm run dev
 ```
 
-## Incoming Endpoints
+## Health Endpoint
 
-The service exposes a single HTTP endpoint for monitoring.
+The service exposes a single HTTP endpoint for status.
 
 ### `GET /health`
 
@@ -66,10 +273,6 @@ curl https://localhost:3090/health
 ```
 
 (Host and port are configurable via `health.host` / `health.port` in the service config.)
-
-**Authentication:** None
-
-**Request**
 
 No query parameters, headers, or request body required.
 
@@ -227,11 +430,7 @@ Use this endpoint for all new integrations.
 
 ---
 
-### `POST /Kekspace/Web3ItemTransferLegacy` — Legacy
-
-Use this endpoint only if you have an existing integration that cannot be migrated to the normalized format.
-
-**Full URL:** `https://localhost:3030/Kekspace/Web3ItemTransferLegacy`
+http://localhost:3030/Kekspace/Web3ItemTransferLegacy`
 
 **Payload**
 
@@ -262,8 +461,18 @@ All values are strings.
 > **Note:** `TransferBatch` events are expanded — one POST per token ID. Both sinks can be enabled simultaneously during a migration period.
 
 ---
+### `POST /Kekspace/Web3ItemTransferLegacy` — Legacy
 
-## Service Configuration Reference
+Use this endpoint for compatbility with the old listener, until upgrading is needed.
+
+**Full URL:** `https://localhost:3030/Kekspace/Web3ItemTransferLegacy
+
+
+
+
+
+
+## config.json Reference
 
 The relay is configured via a JSON file (default: `config/config.json`) or the `ITEM_RELAY_CONFIG` env var.
 
@@ -309,7 +518,17 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
   "health": {
     "host": "127.0.0.1",
     "port": 3030
+  },
+  {
+  "endpoint": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 3099,
+    "eventTesting": false
   }
+}
+
+
 }
 ```
 
@@ -335,27 +554,76 @@ The relay is configured via a JSON file (default: `config/config.json`) or the `
 | `sinks.*.authHeader` | `string` (optional) | Overrides the header name; token sent as-is with no `Bearer` prefix |
 | `health.host` | `string` | `127.0.0.1` for localhost only, `0.0.0.0` to expose externally |
 | `health.port` | `number` | Port for the health endpoint |
+| `endpoint.enabled` | `boolean` | Runs the local API server (`:3099`) that serves the read endpoints |
+| `endpoint.host` | `string` | Local API bind host (use `127.0.0.1`) |
+| `endpoint.port` | `number` | Local API port (default `3099`) |
+| `endpoint.eventTesting` | `boolean` | Gates `POST /inject` only. Keep `false` in production |
 
 
+--------------------
 
-## Testing & Event Injection
+## Local API Server (port 3099)
 
-To test the webhook delivery without waiting for blockchain events, enable the optional test server in your config:
+Enabling the `endpoint` block starts a localhost-only API on `127.0.0.1:3099` with two purposes: **read endpoints** for game devs (listing/bundle/price lookups) and an optional **event-injection** endpoint for testing.
 
 ```json
 {
-  "test": {
+  "endpoint": {
     "enabled": true,
     "host": "127.0.0.1",
-    "port": 3095
+    "port": 3099,
+    "eventTesting": false
   }
 }
 ```
 
-Then POST a test event to inject it into the queue:
+- `enabled` runs the server and the read endpoints.
+- `eventTesting` gates `POST /inject` only — when `false`, injection returns `403` while the read endpoints keep working. **Keep `eventTesting` off in production.**
+
+### Read endpoints
+
+These answer queries from CatalogShop listing state the relay indexes locally from on-chain events (no per-request chain call). Full reference and response shapes are in `README-API.md`.
 
 ```bash
-curl -X POST http://127.0.0.1:3095/inject \
+# First standalone listing + price for a token (assumes tokenId is unique)
+curl 'http://127.0.0.1:3099/fetch?tokenId=218'
+
+# All standalone listings for a token, one per collection
+curl 'http://127.0.0.1:3099/fetchInCollection?tokenId=218'
+
+# A listing's full composition + price (isBundle=true when it has >1 line)
+curl 'http://127.0.0.1:3099/fetchBundle?bundleId=2'
+```
+
+A **bundle** is a single listing with more than one delivery line; bundles are excluded from the standalone-token lookups, so a discounted bundle never overrides a token's standalone price.
+
+
+## Example Fetch Requests
+
+Quick curl examples for the read endpoints on the local API server (`127.0.0.1:3099`, enabled by `endpoint.enabled`). These need no `eventTesting` flag. Replace `218` / `2` with a real tokenId / listingId from your CatalogShop. See `README-API.md` for full detailed info.
+
+```bash
+# Look up the first standalone listing + price for a token
+curl 'http://127.0.0.1:3099/fetch?tokenId=218'
+# → {"tokenId":"218","listingId":1,"eth":"1000000000000000000","erc20":[]}
+
+# Look up standalone listings for a token across every collection (one per collection)
+curl 'http://127.0.0.1:3099/fetchInCollection?tokenId=218'
+# → {"tokenId":"218","listings":[{"listingId":1,"collectionId":1,"eth":"1000000000000000000","erc20":[]}]}
+
+# Look up a listing's full composition + price by listingId (isBundle=true when it has >1 line)
+curl 'http://127.0.0.1:3099/fetchBundle?bundleId=2'
+# → {"bundleId":2,"isBundle":true,"eth":"500000000000000000","erc20":[],"items":[{"collectionId":1,"tokenId":"218","amount":"1"},{"collectionId":1,"tokenId":"777","amount":"1"}]}
+```
+
+
+
+### Event injection (testing only)
+
+With `eventTesting: true`, POST a test event to inject it into the queue (see `EXAMPLES.md` for more):
+
+```bash
+curl -X POST http://127.0.0.1:3099/inject \
   -H "Content-Type: application/json" \
   -d '{
     "notificationId": "test-event-1",
@@ -377,14 +645,8 @@ curl -X POST http://127.0.0.1:3095/inject \
 
 The event will flow through the same queue and webhook delivery logic as blockchain events, so you can verify your downstream endpoint receives the correct payload shape.
 
+# See EXAMPLES.md for more event testing examples.
 
-## Mock Webhook Endpoint Listener
 
-In the tools/ folder there is a Quick Node mock server.
 
-Normally the game  will listen to events sent from the listener to port 3000, but if it is not in place yet
-the item-relay will give errors while testing.
 
-Running this mock-webhook-server.sh allows testing curl calls with no game/webhook server running.
-
-This is only needed if enabling test mode and there is no game endpoint yet
