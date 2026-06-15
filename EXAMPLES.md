@@ -1,6 +1,6 @@
 # Event Injection Examples
 
-The local API server must be enabled with `"enabled": true` in the `endpoint` block of `config.json`, **and** event injection must be turned on with `"eventTesting": true`. The server runs whenever `enabled` is `true` (so the read endpoints — see `README-API.md` — stay available), but `POST /inject` returns `403` unless `eventTesting` is also `true`.
+The local API server must be enabled with `"enabled": true` in the `endpoint` block of `config.json`, **and** event injection must be turned on with `"eventTesting": true`. 
 
 **Test Server Endpoint:** `POST` http://127.0.0.1:3099/inject`
 
@@ -13,8 +13,9 @@ All examples send events to the same queue and delivery system as real blockchai
 ## Legacy Endpoint Testing (simple)
 
 > **Note:** `/inject` now requires `notificationId` and uses **camelCase** field names
-> (`blockNumber`, `txHash`, `tokenId`, …) — **not** the old snake_case webhook fields
-> (`block_number`, `tx_hash`, `token_id`). The legacy *output* still uses snake_case; the
+> (`blockNumber`, `txHash`, `tokenId`, …)
+>
+> The legacy *output* still uses snake_case; the
 > relay converts it for you when the `legacy` sink is enabled. So the old `block_number` /
 > `tx_hash` scripts will fail with "missing required field: notificationId".
 
@@ -110,6 +111,24 @@ curl -X POST http://127.0.0.1:3099/inject \
 The pre-`notificationId`, snake_case script people used to run. `/inject` rejects it with
 `{"error":"missing required field: notificationId"}`. Use the camelCase examples above instead.
 
+
+```bash
+curl -X POST http://127.0.0.1:3099/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notificationId": "legacy-test-721-1",
+    "blockNumber": 5234892,
+    "txHash": "0x2234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "logIndex": 0,
+    "contractAddress": "0x88366612E25A9171b87393b0cF328CA46163EE86",
+    "standard": "ERC721",
+    "eventName": "Transfer",
+    "from": "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12",
+    "to": "0x9876543210FeDcBa9876543210FeDcBa98765432",
+    "tokenId": "1",
+    "value": "1"
+  }'
+```
 ```bash
 # DOES NOT WORK — kept only to show the change.
 curl -X POST http://localhost:3099/inject \
