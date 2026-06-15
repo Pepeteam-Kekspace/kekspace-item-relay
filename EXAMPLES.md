@@ -2,11 +2,128 @@
 
 The local API server must be enabled with `"enabled": true` in the `endpoint` block of `config.json`, **and** event injection must be turned on with `"eventTesting": true`. The server runs whenever `enabled` is `true` (so the read endpoints — see `README-API.md` — stay available), but `POST /inject` returns `403` unless `eventTesting` is also `true`.
 
-**Test Server Endpoint:** `POST `http://127.0.0.1:3099/inject`
+**Test Server Endpoint:** `POST` http://127.0.0.1:3099/inject`
 
 All examples send events to the same queue and delivery system as real blockchain events.
 
 # Do not leave event injection (`eventTesting`) on in production!
+
+---
+
+## Legacy Endpoint Testing (simple)
+
+> **Note:** `/inject` now requires `notificationId` and uses **camelCase** field names
+> (`blockNumber`, `txHash`, `tokenId`, …) — **not** the old snake_case webhook fields
+> (`block_number`, `tx_hash`, `token_id`). The legacy *output* still uses snake_case; the
+> relay converts it for you when the `legacy` sink is enabled. So the old `block_number` /
+> `tx_hash` scripts will fail with "missing required field: notificationId".
+
+These are the minimal fields the legacy listener cares about (`block_number`, `tx_hash`,
+`operator`, `from`, `to`, `token_id`, `value`). With the `legacy` sink enabled, this is all
+you need:
+
+```bash
+curl -X POST http://127.0.0.1:3099/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notificationId": "legacy-test-1",
+    "blockNumber": 5234891,
+    "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "logIndex": 0,
+    "contractAddress": "0xC58FB9bdC4c3e6c261f815b968476C7Cd3B17314",
+    "standard": "ERC1155",
+    "eventName": "TransferSingle",
+    "operator": "0x551982C4141144802c940bdE90C0Ac1667b018CC",
+    "from": "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12",
+    "to": "0x9876543210FeDcBa9876543210FeDcBa98765432",
+    "tokenId": "1",
+    "value": "100"
+  }'
+```
+
+This delivers the legacy payload:
+`{block_number, tx_hash, operator, from, to, token_id, value}`.
+
+ERC721 variant (legacy `value` is always `"1"`; `operator` falls back to `from`):
+
+```bash
+curl -X POST http://127.0.0.1:3099/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notificationId": "legacy-test-721-1",
+    "blockNumber": 5234892,
+    "txHash": "0x2234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "logIndex": 0,
+    "contractAddress": "0x88366612E25A9171b87393b0cF328CA46163EE86",
+    "standard": "ERC721",
+    "eventName": "Transfer",
+    "from": "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12",
+    "to": "0x9876543210FeDcBa9876543210FeDcBa98765432",
+    "tokenId": "1",
+    "value": "1"
+  }'
+```
+
+ERC1155 mint (sent `from` the zero address):
+
+```bash
+curl -X POST http://127.0.0.1:3099/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notificationId": "legacy-test-mint-1",
+    "blockNumber": 5234893,
+    "txHash": "0x3234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "logIndex": 0,
+    "contractAddress": "0xC58FB9bdC4c3e6c261f815b968476C7Cd3B17314",
+    "standard": "ERC1155",
+    "eventName": "TransferSingle",
+    "from": "0x0000000000000000000000000000000000000000",
+    "to": "0x9876543210FeDcBa9876543210FeDcBa98765432",
+    "tokenId": "42",
+    "value": "5"
+  }'
+```
+
+ERC1155 transfer, larger quantity (`value` is a string):
+
+```bash
+curl -X POST http://127.0.0.1:3099/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notificationId": "legacy-test-2",
+    "blockNumber": 5234894,
+    "txHash": "0x4234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "logIndex": 0,
+    "contractAddress": "0xC58FB9bdC4c3e6c261f815b968476C7Cd3B17314",
+    "standard": "ERC1155",
+    "eventName": "TransferSingle",
+    "operator": "0x551982C4141144802c940bdE90C0Ac1667b018CC",
+    "from": "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12",
+    "to": "0x9876543210FeDcBa9876543210FeDcBa98765432",
+    "tokenId": "203",
+    "value": "1000"
+  }'
+```
+
+### ⚠️ Old format — this will FAIL
+
+The pre-`notificationId`, snake_case script people used to run. `/inject` rejects it with
+`{"error":"missing required field: notificationId"}`. Use the camelCase examples above instead.
+
+```bash
+# DOES NOT WORK — kept only to show the change.
+curl -X POST http://localhost:3099/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "block_number": 5234891,
+    "tx_hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "operator": "0x551982C4141144802c940bdE90C0Ac1667b018CC",
+    "from": "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12",
+    "to": "0x9876543210FeDcBa9876543210FeDcBa98765432",
+    "token_id": "1",
+    "value": "100"
+  }'
+```
 
 ---
 
