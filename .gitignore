@@ -45,3 +45,6 @@ next-env.d.ts
 
 # application data
 
+
+# Claude Code personal settings
+.claude/settings.local.json
