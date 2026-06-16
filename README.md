@@ -59,7 +59,7 @@ curl 'http://127.0.0.1:3099/fetchInCollection?tokenId=218'
 
 
 ## Listener Events 
-###`http://localhost:3030/Kekspace/Web3ItemTransferLegacy`
+### `http://localhost:3030/Kekspace/Web3ItemTransferLegacy`
 
 - The item-relay service pushes token transfer events to the KekSpace game server via HTTP POST. 
 - Two formats are available: **normalized** (recommended) and **legacy**.
