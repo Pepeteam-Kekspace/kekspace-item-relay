@@ -151,7 +151,7 @@ Enabling the `endpoint` block in config.json starts a localhost-only API on `127
 }
 ```
 - `enabled` runs the server and the read endpoints.
-- `eventTesting: true` enables `POST http://localhost:3090/inject`for "fake" event testing - see **EXAMPLES.md**
+- `eventTesting: true` enables `POST http://localhost:3099/inject`for "fake" event testing - see **EXAMPLES.md**
 -  **Keep `eventTesting` off in production.**
 
 
