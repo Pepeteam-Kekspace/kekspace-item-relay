@@ -47,6 +47,11 @@ function asBoolean(value: unknown, label: string): boolean {
   return value;
 }
 
+/** True only when the RPC URL clearly targets a testnet. */
+function isTestnetRpc(url: string): boolean {
+  return /sepolia|testnet/i.test(url);
+}
+
 function asStandard(value: unknown, label: string): TokenStandard {
   if (value !== "ERC1155" && value !== "ERC721") {
     throw new Error(`${label} must be ERC1155 or ERC721`);
@@ -150,14 +155,26 @@ export function loadConfig(): ServiceConfig {
       ? {
           endpoint: (() => {
             const endpoint = asObject(root.endpoint, "config.endpoint");
+            const requestedEventTesting =
+              endpoint.eventTesting === undefined
+                ? false
+                : asBoolean(endpoint.eventTesting, "config.endpoint.eventTesting");
+            // Safety guard: never allow fake-event injection unless the RPC URL
+            // clearly points at a testnet (contains "sepolia"/"testnet").
+            const rpcUrl = asString(chain.httpRpcUrl, "config.chain.httpRpcUrl");
+            const eventTesting = requestedEventTesting && isTestnetRpc(rpcUrl);
+            if (requestedEventTesting && !eventTesting) {
+              console.warn(
+                "SECURITY: config.endpoint.eventTesting was requested (true) but the RPC URL " +
+                  `(${rpcUrl}) has no 'sepolia'/'testnet' marker — forcibly disabling POST /inject ` +
+                  "to prevent fake events on mainnet. Point httpRpcUrl at a testnet to enable it.",
+              );
+            }
             return {
               enabled: asBoolean(endpoint.enabled, "config.endpoint.enabled"),
               host: asString(endpoint.host, "config.endpoint.host"),
               port: asNumber(endpoint.port, "config.endpoint.port"),
-              eventTesting:
-                endpoint.eventTesting === undefined
-                  ? false
-                  : asBoolean(endpoint.eventTesting, "config.endpoint.eventTesting"),
+              eventTesting,
             };
           })(),
         }
